@@ -154,6 +154,7 @@ dev-serve [project-name] [options]
 Options:
   --init              Initialize config file in current directory
   --run-pre-command   Run the 'pre-command' (if configured) before starting the server
+  --skip-pre-command  Skip running the 'pre-command' even if 'always_run_pre_command' is enabled
   -h, --help          Show help message
 
 Examples:
@@ -161,6 +162,7 @@ Examples:
   dev-serve my-app-backend         # Run server for named project
   dev-serve --init                 # Initialize config file
   dev-serve my-app-backend --run-pre-command # Run 'pre-command' then start server
+  dev-serve my-app-backend --skip-pre-command # Skip pre-command even if always_run_pre_command is true
 ```
 
 ## ⚙️ Configuration
@@ -180,6 +182,8 @@ Create a `.dev-serve.yml` file in your project root:
 # Rails project example
 command: "bin/rails server"
 pre-command: "git pull origin main"  # Optional: run before starting server
+options:
+  always_run_pre_command: true  # Optional: automatically run pre-command
 env:
   RAILS_ENV: development
   DATABASE_URL: postgres://localhost/myapp_dev
@@ -209,6 +213,8 @@ projects:
     name: my-app-backend
     command: bin/rails server
     pre-command: git pull origin main  # Optional: run before starting server
+    options:
+      always_run_pre_command: true  # Optional: automatically run pre-command
     env:
       RAILS_ENV: development
       DATABASE_URL: postgres://localhost/myapp_dev
@@ -277,7 +283,18 @@ Check your global config at ~/.config/dev-serve/config.yml
 | `name` | Project name for running by name | `my-app-backend` |
 | `command` | Command to run the dev server | `bin/rails server`, `npm run dev` |
 | `pre-command` | Command to run before starting server (optional) | `git pull origin main`, `npm install` |
+| `options` | Configuration options (optional) | See below |
 | `env` | Environment variables (optional) | `RAILS_ENV: development` |
+
+#### Options Section
+
+The `options` section allows you to configure behavior:
+
+| Option | Description | Example |
+|--------|-------------|---------|
+| `always_run_pre_command` | Automatically run pre-command when starting server (boolean) | `true`, `false` |
+
+When `always_run_pre_command` is set to `true`, the pre-command will run automatically every time you start the server, without needing the `--run-pre-command` flag. You can still skip it using the `--skip-pre-command` flag.
 
 ## 🔍 Auto-Detection
 
@@ -374,24 +391,39 @@ projects:
     name: admin
     command: bin/rails server
     pre-command: git pull origin main
+    options:
+      always_run_pre_command: true
 ```
 
-Then run:
+With `always_run_pre_command: true`, just run:
 ```bash
-dev-serve admin --run-pre-command
+dev-serve admin
 ```
 
-This will:
+This will automatically:
 1. Run `git pull origin main` first
 2. Then start `bin/rails server`
+
+To skip the pre-command:
+```bash
+dev-serve admin --skip-pre-command
+```
 
 **Local config example (.dev-serve.yml):**
 ```yaml
 command: "npm run dev"
 pre-command: "git pull && npm install"
+options:
+  always_run_pre_command: true
 ```
 
-Use `--run-pre-command` to execute the pre-command before starting the server. If the pre-command fails, the server won't start.
+**Manual execution (without always_run_pre_command):**
+```yaml
+command: "npm run dev"
+pre-command: "git pull && npm install"
+```
+
+Then use `--run-pre-command` to execute the pre-command before starting the server. If the pre-command fails, the server won't start.
 
 ## 🛠️ Advanced Usage
 
@@ -439,11 +471,39 @@ command: "docker-compose up"
 
 ### Pre-Commands
 
-Run setup commands before starting your development server. Use the `--run-pre-command` flag to execute the pre-command:
+Run setup commands before starting your development server. There are two ways to run pre-commands:
+
+#### Option 1: Manual Execution (Default)
+Use the `--run-pre-command` flag to execute the pre-command:
 
 ```yaml
 command: "bin/rails server"
 pre-command: "git pull origin main"
+```
+
+Then run:
+```bash
+dev-serve --run-pre-command
+```
+
+#### Option 2: Automatic Execution
+Enable `always_run_pre_command` in the options section to automatically run the pre-command:
+
+```yaml
+command: "bin/rails server"
+pre-command: "git pull origin main"
+options:
+  always_run_pre_command: true
+```
+
+Now the pre-command will run automatically every time you start the server:
+```bash
+dev-serve  # Pre-command runs automatically
+```
+
+To skip the pre-command even when `always_run_pre_command` is enabled:
+```bash
+dev-serve --skip-pre-command  # Pre-command is skipped
 ```
 
 Common use cases:
@@ -452,7 +512,7 @@ Common use cases:
 - Run migrations: `pre-command: bin/rails db:migrate`
 - Multiple commands: `pre-command: "git pull && npm install"`
 
-**Important**: The pre-command only runs when you use the `--run-pre-command` flag. If the pre-command fails (non-zero exit code), the server won't start.
+**Important**: If the pre-command fails (non-zero exit code), the server won't start.
 
 ### Environment Variables
 

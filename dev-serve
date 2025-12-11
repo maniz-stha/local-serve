@@ -33,8 +33,22 @@ class DevServe
       exit 1
     end
 
-    # Run pre-command if requested and configured
-    if @options[:run_pre_command]
+    # Determine if pre-command should run
+    should_run_pre_command = false
+    
+    # Check if --skip-pre-command flag is set (highest priority - overrides everything)
+    unless @options[:skip_pre_command]
+      # Check if --run-pre-command flag is set
+      if @options[:run_pre_command]
+        should_run_pre_command = true
+      # Check if always_run_pre_command option is enabled in config
+      elsif config && config['options'] && config['options']['always_run_pre_command'] == true
+        should_run_pre_command = true
+      end
+    end
+
+    # Run pre-command if needed
+    if should_run_pre_command
       if config && config['pre-command']
         pre_command = config['pre-command']
         puts "🔧 Running pre-command..."
@@ -51,9 +65,15 @@ class DevServe
         puts "\n✅ Pre-command completed successfully"
         puts "\n#{'-' * 50}\n\n"
       else
-        puts "⚠️  --run-pre-command flag specified but no 'pre-command' configured"
-        puts "Add a 'pre-command' key to your project config to use this feature"
-        puts "\n#{'-' * 50}\n\n"
+        if @options[:run_pre_command]
+          puts "⚠️  --run-pre-command flag specified but no 'pre-command' configured"
+          puts "Add a 'pre-command' key to your project config to use this feature"
+          puts "\n#{'-' * 50}\n\n"
+        elsif config && config['options'] && config['options']['always_run_pre_command'] == true
+          puts "⚠️  'always_run_pre_command' is enabled but no 'pre-command' configured"
+          puts "Add a 'pre-command' key to your project config to use this feature"
+          puts "\n#{'-' * 50}\n\n"
+        end
       end
     end
 
@@ -82,6 +102,10 @@ class DevServe
         @options[:run_pre_command] = true
       end
 
+      opts.on("--skip-pre-command", "Skip running the 'pre-command' even if 'always_run_pre_command' is enabled") do
+        @options[:skip_pre_command] = true
+      end
+
       opts.on("-h", "--help", "Show this help message") do
         puts opts
         puts "\nExamples:"
@@ -89,6 +113,7 @@ class DevServe
         puts "  dev-serve my-app-backend     # Run server for named project"
         puts "  dev-serve --init             # Initialize config file"
         puts "  dev-serve fluid --run-pre-command # Run 'pre-command' then start server"
+        puts "  dev-serve my-app --skip-pre-command # Skip pre-command even if always_run_pre_command is true"
         exit
       end
     end.parse!(args)
@@ -125,6 +150,11 @@ class DevServe
         # env:
         #   RAILS_ENV: development
         #   DATABASE_URL: postgres://localhost/myapp_dev
+        # Optional: Run pre-command automatically
+        # options:
+        #   always_run_pre_command: true
+        # Optional: Run command before starting server
+        # pre-command: "git pull origin main"
       YAML
     when :node
       <<~YAML
@@ -133,6 +163,11 @@ class DevServe
         # Optional: Specify alternative commands
         # command: "yarn dev"
         # command: "pnpm dev"
+        # Optional: Run pre-command automatically
+        # options:
+        #   always_run_pre_command: true
+        # Optional: Run command before starting server
+        # pre-command: "git pull origin main"
       YAML
     when :nextjs
       <<~YAML
@@ -140,6 +175,11 @@ class DevServe
         command: "npm run dev"
         # Optional: Next.js specific options
         # command: "npm run dev -- --turbo"
+        # Optional: Run pre-command automatically
+        # options:
+        #   always_run_pre_command: true
+        # Optional: Run command before starting server
+        # pre-command: "git pull origin main"
       YAML
     else
       <<~YAML
@@ -149,6 +189,11 @@ class DevServe
         # Optional: Environment variables
         # env:
         #   NODE_ENV: development
+        # Optional: Run pre-command automatically
+        # options:
+        #   always_run_pre_command: true
+        # Optional: Run command before starting server
+        # pre-command: "git pull origin main"
       YAML
     end
   end
